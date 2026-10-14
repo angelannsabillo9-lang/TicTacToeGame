@@ -46,12 +46,23 @@
                 {{BOARD}}
             </div>
 
-            <form method="POST" action="/">
-                <button class="reset-button" type="submit"
-                        name="reset" value="yes">
-                    ↻ New Round
-                </button>
-            </form>
+<div class="game-actions">
+
+    <form method="POST" action="/">
+        <button class="reset-button" type="submit"
+                name="newround" value="yes">
+            ↻ New Round
+        </button>
+    </form>
+
+    <form method="POST" action="/">
+        <button class="reset-button" type="submit"
+                name="reset" value="yes">
+            🗑 Reset Game
+        </button>
+    </form>
+
+</div>
 
         </section>
 
