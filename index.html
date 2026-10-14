@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe Game</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <main class="game-container">
+
+        <header class="header">
+            <p class="eyebrow">TWO PLAYER GAME</p>
+            <h1>Tic-Tac-Toe</h1>
+            <p class="subtitle">
+                Three in a row wins the game!
+            </p>
+        </header>
+
+        <section class="scoreboard">
+            <div class="score-card player-x">
+                <span class="player-label">PLAYER X</span>
+                <span class="score">{{SCORE_X}}</span>
+            </div>
+
+            <div class="score-card draw-card">
+                <span class="player-label">DRAWS</span>
+                <span class="score">{{DRAWS}}</span>
+            </div>
+
+            <div class="score-card player-o">
+                <span class="player-label">PLAYER O</span>
+                <span class="score">{{SCORE_O}}</span>
+            </div>
+        </section>
+
+        <section class="game-card">
+
+            <div class="status" aria-live="polite">
+                {{STATUS}}
+            </div>
+
+            <div class="board">
+                {{BOARD}}
+            </div>
+
+            <form method="POST" action="/">
+                <button class="reset-button" type="submit"
+                        name="reset" value="yes">
+                    ↻ New Round
+                </button>
+            </form>
+
+        </section>
+
+        <footer>
+            <p>Made with Java, HTML &amp; CSS</p>
+        </footer>
+
+    </main>
+
+</body>
+</html>
