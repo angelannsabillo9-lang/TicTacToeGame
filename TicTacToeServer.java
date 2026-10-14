@@ -18,6 +18,7 @@ public class TicTacToeServer {
     static char currentPlayer = 'X';
     static boolean gameOver = false;
     static String status = "Player X's turn!";
+
     static int scoreX = 0;
     static int scoreO = 0;
     static int draws = 0;
@@ -27,12 +28,12 @@ public class TicTacToeServer {
         resetBoard();
 
         int port = Integer.parseInt(
-    System.getenv().getOrDefault("PORT", "8080")
-);
+            System.getenv().getOrDefault("PORT", "8080")
+        );
 
-HttpServer server = HttpServer.create(
-    new InetSocketAddress("0.0.0.0", port), 0
-);
+        HttpServer server = HttpServer.create(
+            new InetSocketAddress("0.0.0.0", port), 0
+        );
 
         server.createContext("/style.css", exchange -> {
             try {
@@ -52,6 +53,7 @@ HttpServer server = HttpServer.create(
                 try (OutputStream out = exchange.getResponseBody()) {
                     out.write(data);
                 }
+
             } catch (IOException e) {
                 sendResponse(exchange, 500, "Could not load CSS.");
             }
@@ -61,7 +63,6 @@ HttpServer server = HttpServer.create(
             try {
                 if ("POST".equalsIgnoreCase(
                         exchange.getRequestMethod())) {
-
                     handleMove(exchange);
                 }
 
@@ -72,9 +73,15 @@ HttpServer server = HttpServer.create(
 
                 html = html.replace("{{BOARD}}", createBoardHTML());
                 html = html.replace("{{STATUS}}", status);
-                html = html.replace("{{SCORE_X}}", String.valueOf(scoreX));
-                html = html.replace("{{SCORE_O}}", String.valueOf(scoreO));
-                html = html.replace("{{DRAWS}}", String.valueOf(draws));
+                html = html.replace(
+                    "{{SCORE_X}}", String.valueOf(scoreX)
+                );
+                html = html.replace(
+                    "{{SCORE_O}}", String.valueOf(scoreO)
+                );
+                html = html.replace(
+                    "{{DRAWS}}", String.valueOf(draws)
+                );
 
                 byte[] data = html.getBytes(StandardCharsets.UTF_8);
 
@@ -89,17 +96,18 @@ HttpServer server = HttpServer.create(
                 }
 
             } catch (IOException e) {
-                sendResponse(exchange, 500,
-                    "Error loading the game. Check your project files.");
+                sendResponse(
+                    exchange,
+                    500,
+                    "Error loading the game. Check your project files."
+                );
             }
         });
 
         server.setExecutor(null);
         server.start();
 
-        System.out.println("Tic-Tac-Toe is running!");
-        System.out.println("Open http://localhost:8080");
-        System.out.println("Press Ctrl+C to stop the server.");
+        System.out.println("Tic-Tac-Toe is running on port " + port);
     }
 
     static void handleMove(HttpExchange exchange) throws IOException {
@@ -111,15 +119,30 @@ HttpServer server = HttpServer.create(
 
         Map<String, String> form = parseForm(body);
 
-        if (form.containsKey("reset")) {
+        // NEW ROUND: Clear board but keep scores
+        if (form.containsKey("newround")) {
             resetBoard();
-            status = "Player X's turn!";
-        } else if (form.containsKey("cell") && !gameOver) {
+        }
+
+        // RESET GAME: Clear board and all scores
+        else if (form.containsKey("reset")) {
+            resetBoard();
+
+            scoreX = 0;
+            scoreO = 0;
+            draws = 0;
+
+            status = "Game reset! Player X's turn!";
+        }
+
+        // PLAYER MOVE
+        else if (form.containsKey("cell") && !gameOver) {
 
             try {
                 int cell = Integer.parseInt(form.get("cell"));
 
-                if (cell >= 0 && cell < 9 && board[cell] == ' ') {
+                if (cell >= 0 && cell < 9
+                        && board[cell] == ' ') {
 
                     board[cell] = currentPlayer;
 
@@ -133,15 +156,18 @@ HttpServer server = HttpServer.create(
                         }
 
                         status = "Player " + currentPlayer + " wins!";
+
                     } else if (isBoardFull()) {
                         gameOver = true;
                         draws++;
                         status = "It's a draw!";
+
                     } else {
                         currentPlayer =
                             (currentPlayer == 'X') ? 'O' : 'X';
 
-                        status = "Player " + currentPlayer + "'s turn!";
+                        status = "Player "
+                            + currentPlayer + "'s turn!";
                     }
                 }
 
@@ -182,10 +208,13 @@ HttpServer server = HttpServer.create(
 
         for (int i = 0; i < 9; i++) {
 
-            html.append("<form class=\"cell-form\" method=\"POST\" action=\"/\">");
+            html.append(
+                "<form class=\"cell-form\" method=\"POST\" action=\"/\">"
+            );
 
-            html.append("<button class=\"cell\" type=\"submit\" name=\"cell\" value=\"")
-                .append(i).append("\"");
+            html.append(
+                "<button class=\"cell\" type=\"submit\" name=\"cell\" value=\""
+            ).append(i).append("\"");
 
             if (board[i] != ' ' || gameOver) {
                 html.append(" disabled");
@@ -225,8 +254,8 @@ HttpServer server = HttpServer.create(
 
         for (int[] line : wins) {
             if (board[line[0]] != ' '
-                && board[line[0]] == board[line[1]]
-                && board[line[1]] == board[line[2]]) {
+                    && board[line[0]] == board[line[1]]
+                    && board[line[1]] == board[line[2]]) {
                 return true;
             }
         }
@@ -257,7 +286,9 @@ HttpServer server = HttpServer.create(
     }
 
     static void sendResponse(
-        HttpExchange exchange, int code, String message
+            HttpExchange exchange,
+            int code,
+            String message
     ) throws IOException {
 
         byte[] data = message.getBytes(StandardCharsets.UTF_8);
