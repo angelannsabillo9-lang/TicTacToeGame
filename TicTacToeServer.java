@@ -1,4 +1,3 @@
-
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpExchange;
 
@@ -9,14 +8,15 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class TicTacToeServer {
 
     static char[] board = new char[9];
     static char currentPlayer = 'X';
     static boolean gameOver = false;
+
     static String status = "Player X's turn!";
 
     static int scoreX = 0;
@@ -37,33 +37,28 @@ public class TicTacToeServer {
 
         server.createContext("/style.css", exchange -> {
             try {
-                String css = Files.readString(
-                    Path.of("style.css"),
-                    StandardCharsets.UTF_8
-                );
-
-                byte[] data = css.getBytes(StandardCharsets.UTF_8);
+                byte[] css = Files.readAllBytes(Path.of("style.css"));
 
                 exchange.getResponseHeaders().set(
                     "Content-Type", "text/css; charset=UTF-8"
                 );
 
-                exchange.sendResponseHeaders(200, data.length);
+                exchange.sendResponseHeaders(200, css.length);
 
-                try (OutputStream out = exchange.getResponseBody()) {
-                    out.write(data);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(css);
                 }
-
             } catch (IOException e) {
-                sendResponse(exchange, 500, "Could not load CSS.");
+                e.printStackTrace();
             }
         });
 
         server.createContext("/", exchange -> {
             try {
-                if ("POST".equalsIgnoreCase(
-                        exchange.getRequestMethod())) {
+                if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                     handleMove(exchange);
+                } else {
+                    exchange.getRequestBody().close();
                 }
 
                 String html = Files.readString(
@@ -73,41 +68,35 @@ public class TicTacToeServer {
 
                 html = html.replace("{{BOARD}}", createBoardHTML());
                 html = html.replace("{{STATUS}}", status);
-                html = html.replace(
-                    "{{SCORE_X}}", String.valueOf(scoreX)
-                );
-                html = html.replace(
-                    "{{SCORE_O}}", String.valueOf(scoreO)
-                );
-                html = html.replace(
-                    "{{DRAWS}}", String.valueOf(draws)
-                );
+                html = html.replace("{{SCORE_X}}", String.valueOf(scoreX));
+                html = html.replace("{{SCORE_O}}", String.valueOf(scoreO));
+                html = html.replace("{{DRAWS}}", String.valueOf(draws));
 
-                byte[] data = html.getBytes(StandardCharsets.UTF_8);
+                sendResponse(exchange, html);
 
-                exchange.getResponseHeaders().set(
-                    "Content-Type", "text/html; charset=UTF-8"
-                );
+            } catch (Exception e) {
+                e.printStackTrace();
 
-                exchange.sendResponseHeaders(200, data.length);
-
-                try (OutputStream out = exchange.getResponseBody()) {
-                    out.write(data);
+                try {
+                    sendResponse(
+                        exchange,
+                        "<h1>Error loading game.</h1>"
+                        + "<p>Check index.html and style.css.</p>"
+                    );
+                } catch (IOException ignored) {
+                    exchange.close();
                 }
-
-            } catch (IOException e) {
-                sendResponse(
-                    exchange,
-                    500,
-                    "Error loading the game. Check your project files."
-                );
             }
         });
 
-        server.setExecutor(null);
         server.start();
 
-        System.out.println("Tic-Tac-Toe is running on port " + port);
+        System.out.println(
+            "Tic-Tac-Toe is running on port " + port
+        );
+        System.out.println(
+            "Open your browser at http://localhost:" + port
+        );
     }
 
     static void handleMove(HttpExchange exchange) throws IOException {
@@ -119,87 +108,71 @@ public class TicTacToeServer {
 
         Map<String, String> form = parseForm(body);
 
-        // NEW ROUND: Clear board but keep scores
         if (form.containsKey("newround")) {
             resetBoard();
+            return;
         }
 
-        // RESET GAME: Clear board and all scores
-        else if (form.containsKey("reset")) {
-            resetBoard();
-
+        if (form.containsKey("reset")) {
             scoreX = 0;
             scoreO = 0;
             draws = 0;
 
-            status = "Game reset! Player X's turn!";
+            resetBoard();
+            return;
         }
 
-        // PLAYER MOVE
-        else if (form.containsKey("cell") && !gameOver) {
+        if (form.containsKey("cell") && !gameOver) {
+
+            int cell;
 
             try {
-                int cell = Integer.parseInt(form.get("cell"));
-
-                if (cell >= 0 && cell < 9
-                        && board[cell] == ' ') {
-
-                    board[cell] = currentPlayer;
-
-                    if (hasWinner()) {
-                        gameOver = true;
-
-                        if (currentPlayer == 'X') {
-                            scoreX++;
-                        } else {
-                            scoreO++;
-                        }
-
-                        status = "Player " + currentPlayer + " wins!";
-
-                    } else if (isBoardFull()) {
-                        gameOver = true;
-                        draws++;
-                        status = "It's a draw!";
-
-                    } else {
-                        currentPlayer =
-                            (currentPlayer == 'X') ? 'O' : 'X';
-
-                        status = "Player "
-                            + currentPlayer + "'s turn!";
-                    }
-                }
-
+                cell = Integer.parseInt(form.get("cell"));
             } catch (NumberFormatException e) {
-                status = "Invalid move.";
+                return;
+            }
+
+            if (cell < 0 || cell >= 9) {
+                return;
+            }
+
+            if (board[cell] == ' ') {
+
+                board[cell] = currentPlayer;
+
+                if (hasWinner()) {
+                    status = "Player " + currentPlayer + " wins!";
+
+                    if (currentPlayer == 'X') {
+                        scoreX++;
+                    } else {
+                        scoreO++;
+                    }
+
+                    gameOver = true;
+
+                } else if (isBoardFull()) {
+                    status = "It's a draw!";
+                    draws++;
+                    gameOver = true;
+
+                } else {
+                    currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
+                    status = "Player " + currentPlayer + "'s turn!";
+                }
             }
         }
-
-        exchange.getRequestBody().close();
     }
 
-    static Map<String, String> parseForm(String body) {
+    static void resetBoard() {
 
-        Map<String, String> result = new HashMap<>();
-
-        for (String pair : body.split("&")) {
-            String[] parts = pair.split("=", 2);
-
-            if (parts.length == 2) {
-                String key = URLDecoder.decode(
-                    parts[0], StandardCharsets.UTF_8
-                );
-
-                String value = URLDecoder.decode(
-                    parts[1], StandardCharsets.UTF_8
-                );
-
-                result.put(key, value);
-            }
+        for (int i = 0; i < board.length; i++) {
+            board[i] = ' ';
         }
 
-        return result;
+        currentPlayer = 'X';
+        gameOver = false;
+        status = "Player X's turn!";
     }
 
     static String createBoardHTML() {
@@ -228,8 +201,6 @@ public class TicTacToeServer {
                     .append("\">")
                     .append(board[i])
                     .append("</span>");
-            } else {
-                html.append("<span class=\"empty-mark\">+</span>");
             }
 
             html.append("</button>");
@@ -241,7 +212,7 @@ public class TicTacToeServer {
 
     static boolean hasWinner() {
 
-        int[][] wins = {
+        int[][] winningLines = {
             {0, 1, 2},
             {3, 4, 5},
             {6, 7, 8},
@@ -252,10 +223,12 @@ public class TicTacToeServer {
             {2, 4, 6}
         };
 
-        for (int[] line : wins) {
+        for (int[] line : winningLines) {
+
             if (board[line[0]] != ' '
-                    && board[line[0]] == board[line[1]]
-                    && board[line[1]] == board[line[2]]) {
+                && board[line[0]] == board[line[1]]
+                && board[line[1]] == board[line[2]]) {
+
                 return true;
             }
         }
@@ -274,29 +247,48 @@ public class TicTacToeServer {
         return true;
     }
 
-    static void resetBoard() {
+    static Map<String, String> parseForm(String body) {
 
-        for (int i = 0; i < board.length; i++) {
-            board[i] = ' ';
+        Map<String, String> form = new HashMap<>();
+
+        if (body == null || body.isEmpty()) {
+            return form;
         }
 
-        currentPlayer = 'X';
-        gameOver = false;
-        status = "Player X's turn!";
+        String[] pairs = body.split("&");
+
+        for (String pair : pairs) {
+
+            String[] parts = pair.split("=", 2);
+
+            String key = URLDecoder.decode(
+                parts[0], StandardCharsets.UTF_8
+            );
+
+            String value = parts.length > 1
+                ? URLDecoder.decode(parts[1], StandardCharsets.UTF_8)
+                : "";
+
+            form.put(key, value);
+        }
+
+        return form;
     }
 
     static void sendResponse(
-            HttpExchange exchange,
-            int code,
-            String message
+        HttpExchange exchange, String response
     ) throws IOException {
 
-        byte[] data = message.getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
 
-        exchange.sendResponseHeaders(code, data.length);
+        exchange.getResponseHeaders().set(
+            "Content-Type", "text/html; charset=UTF-8"
+        );
 
-        try (OutputStream out = exchange.getResponseBody()) {
-            out.write(data);
+        exchange.sendResponseHeaders(200, bytes.length);
+
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
         }
     }
 }
